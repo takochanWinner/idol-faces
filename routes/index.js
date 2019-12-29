@@ -3,6 +3,8 @@ const   fs          = require('fs'),
         multer      = require('multer'),
         DIR         = require("app-root-path"),
         AWS         = require('aws-sdk');
+        co          = require('co');
+        async       = require('async');
 // AWS関連の設定値
 const   BUCKET       = 'comperison-faces',
         COLLECTION   = 'imas-million';
@@ -113,12 +115,13 @@ const idol_dictionary = {
  *                  JpnName: アイドル名
  */
 const receiveFiles = async(req) => {
-
   // リクエストの画像をS3へPUT
   await s3Put(req);
-
   // 画像照合
-  const searchResults = await imageRekognition(req.file.originalname);
+  const searchResults = await imageRekognition(req);
+  
+  // リクエストの画像をS3からDelete
+  await s3Delete(req);
 
   return searchResults;
 }
@@ -128,31 +131,54 @@ const receiveFiles = async(req) => {
  * @param {object} リクエストされた画像情報
  */
 const s3Put = (req) => {
-  return new Promise((resolve, reject) => {
-      // S3へのパラメータ
-      const s3PutParams = {
-          Body: fs.readFileSync(localFilePath), 
-          Bucket: BUCKET, 
-          Key: req.file.originalname,
-          ContentType: req.file.mimetype
-      };
-
-      s3.putObject(s3PutParams, (err, data) => {
+  return new Promise((resolve) => {
+    // S3へのパラメータ
+    const s3PutParams = {
+        Body: fs.readFileSync(localFilePath), 
+        Bucket: BUCKET, 
+        Key: req.file.originalname,
+        ContentType: req.file.mimetype
+    };
+    
+    s3.putObject(s3PutParams, (err) => {
+      if (err) {
+        console.log(err, err.stack); // an error occurred
+      } else {
+        console.log('【INFO】uploaded s3 ' + req.file.originalname); // successful response
+        // ローカルのファイル削除
+        fs.unlink(localFilePath, (err) => {
           if (err) {
               console.log(err, err.stack); // an error occurred
           } else {
-              console.log('【INFO】uploaded s3 ' + req.file.originalname); // successful response
-              // ローカルのファイル削除
-              fs.unlink(localFilePath, (err) => {
-                  if (err) {
-                      console.log(err, err.stack); // an error occurred
-                  } else {
-                      console.log('【INFO】deleted local ' + localFilePath); // successful response
-                  }
-              });
+              console.log('【INFO】deleted local ' + localFilePath); // successful response
           }
-      });
+        });
+      }
       resolve();
+    });
+  });
+}
+
+/** 
+ * リクエストされたファイルをS3からDeleteする
+ * @param {object} リクエストされた画像情報
+ */
+const s3Delete = (req) => {
+  return new Promise((resolve) => {
+    // S3へのパラメータ
+    const s3DelParams = {
+        Bucket: BUCKET, 
+        Key: req.file.originalname
+    };
+
+    s3.deleteObject(s3DelParams, (err, data) => {
+      if (err) {
+          console.log(err, err.stack); // an error occurred
+      } else {
+          console.log('【INFO】deleted s3 ' + req.file.originalname); // successful response
+      }
+      resolve();
+    });
   });
 }
 
@@ -164,8 +190,9 @@ const s3Put = (req) => {
  *                  Similarity: 探したい人の画像との類似性
  *                  JpnName: アイドル名
  */
-const imageRekognition = async(uploadImage) => {
-      // Rekognition実行(promise)
+const imageRekognition = async(req) => {
+  const uploadImage = req.file.originalname;
+  // Rekognition実行(promise)
   const result = await execRekognition(uploadImage);
 
   return result;
@@ -179,15 +206,15 @@ const imageRekognition = async(uploadImage) => {
 const setRekognitionParam = (uploadImage) => {
   // Rekognition用パラメータ
   return RekognitionParams = {
-      CollectionId: COLLECTION,
-      Image: {
-          S3Object: {
-              Bucket: BUCKET, 
-              Name: uploadImage
-          }
-      },
-      MaxFaces: 5,
-      FaceMatchThreshold: 1
+    CollectionId: COLLECTION,
+    Image: {
+        S3Object: {
+            Bucket: BUCKET, 
+            Name: uploadImage
+        }
+    },
+    MaxFaces: 5,
+    FaceMatchThreshold: 1
   };
 }
 
@@ -199,30 +226,31 @@ const setRekognitionParam = (uploadImage) => {
 const execRekognition = (uploadImage) => {
   let listResult = [];
   var compareResult = {};
-  return new Promise((resolve, reject) => {
-      const sendRekognitionParam = setRekognitionParam(uploadImage);
+  return new Promise((resolve) => {
+    const sendRekognitionParam = setRekognitionParam(uploadImage);
+    console.log('【INFO】searchFacesByImage');
 
-      // 画像比較開始
-      rekognition.searchFacesByImage(sendRekognitionParam, (err, data) => {
-          if (err) {
-              console.log(err);
-          } else {
-              // 画像として認識されたがunmatch かどうかの判別用
-              if (typeof(data.FaceMatches[0]) != 'undefined') {
-                data.FaceMatches.forEach(faces => {
-                  compareResult = {
-                    Name: faces.Face.ExternalImageId,
-                    Similarity: faces.Similarity,
-                    JpnName: idol_dictionary[faces.Face.ExternalImageId]
-                  };
-                  listResult.push(compareResult)
-                });
-              } else {
-                  console.log('【ERROR】unmach faces');
-              }
-          }
-          resolve(listResult);
-      });
+    // 画像比較開始
+    rekognition.searchFacesByImage(sendRekognitionParam, (err, data) => {
+      if (err) {
+        console.log(err);
+      } else {
+        // 画像として認識されたがunmatch かどうかの判別用
+        if (typeof(data.FaceMatches[0]) != 'undefined') {
+          data.FaceMatches.forEach(faces => {
+            compareResult = {
+              Name: faces.Face.ExternalImageId,
+              Similarity: faces.Similarity,
+              JpnName: idol_dictionary[faces.Face.ExternalImageId]
+            };
+            listResult.push(compareResult)
+          });
+        } else {
+            console.log('【ERROR】unmach faces');
+        }
+      }
+      resolve(listResult);
+    });
   });
 }
 

@@ -46,6 +46,8 @@ $(function() {
       $("#target-image").attr('src', e.target.result);
     }
     reader.readAsDataURL(e.target.files[0]);
+    //結果を削除
+    $('#search-result-list').children().remove();
   });
 });
 $(function() {
