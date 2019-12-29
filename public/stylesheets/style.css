@@ -1,0 +1,88 @@
+body {
+  padding: 40px;
+  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+  text-align: center;
+}
+
+div {
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+a {
+  color: #00B7FF;
+}
+.btn-flat-border {
+  display: inline-block;
+  padding: 1% 10%;
+  text-decoration: none;
+  background: #ffffff;
+  color: #67c5ff;
+  border: solid 2px #67c5ff;
+  border-radius: 3px;
+  transition: .4s;
+}
+
+.btn-flat-border:hover {
+  background: #67c5ff;
+  color: white;
+}
+
+.file-button {
+  display: inline-block;
+  position: relative;
+  padding: 1% 10%;
+  text-align: center;
+  color: #fff;
+  border-radius: 4px;
+  background-color: #2772DB;
+  overflow: hidden;
+  -webkit-transition: .3s ease;
+  -moz-transition: .3s ease;
+  -o-transition: .3s ease;
+  transition: .3s ease;
+}
+.file-button:hover {
+  background-color: #2062bf;
+}
+.file-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.search-result{
+  font-size: larger;
+  color: #ffffff;
+  background-color:dimgrey;
+  padding: 0.5% 20%;
+}
+
+.result-text
+{
+  font-size: x-large;
+  color: #ffffff;
+  background-color:darkslateblue;
+}
+
+#loading {
+  display: table;
+  width: 100%;
+  height: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background-color: #fff;
+  opacity: 0.8;
+}
+ 
+#loading .loadingMsg {
+  display: table-cell;
+  text-align: center;
+  vertical-align: middle;
+  padding-top: 140px;
+  background: url("/images/loading.gif") center center no-repeat;
+}

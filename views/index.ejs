@@ -1,0 +1,133 @@
+<html>
+<head>
+<title>アイマス顔診断</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel="stylesheet" href="../stylesheets/simplemodal.css" type="text/css" media="screen">
+<link rel="stylesheet" href="../stylesheets/style.css" type="text/css" media="screen">
+<script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+<script type="text/javascript" src="../javascripts/mootools-core-1.3.1.js"></script>
+<script type="text/javascript" src="../javascripts/mootools-more-1.3.1.1.js"></script>
+<script type="text/javascript" src="../javascripts/simple-modal.js"></script>
+<script type="text/javascript" src="../javascripts/window-loading.js"></script>
+<script type="text/javascript">
+$(function() {
+  $('#target-chooser').on('change', function (e) {
+    var reader = new FileReader();
+    var image = new Image();
+    // コールバックを設定
+    $("#target-image").bind('load', function(){
+      var maxSize = 500;
+      var imgHeight = $("#target-image")[0].naturalHeight;
+      var imgWidth = $("#target-image")[0].naturalWidth;
+      var resizePer = 0;
+
+      $("#target-image").height(imgHeight);
+      $("#target-image").width(imgWidth);
+      
+      if (imgHeight > maxSize)
+      {
+        resizePer = maxSize / imgHeight;
+        imgHeight = resizePer * imgHeight;
+        imgWidth = resizePer * imgWidth;
+        $("#target-image").height(imgHeight);
+        $("#target-image").width(imgWidth);
+      }
+
+      if (imgWidth > maxSize)
+      {
+        resizePer = maxSize / imgWidth;
+        imgHeight = resizePer * imgHeight;
+        imgWidth = resizePer * imgWidth;
+        $("#target-image").height(imgHeight);
+        $("#target-image").width(imgWidth);
+      }
+    });
+    reader.onload = function (e) {
+      $("#target-image").attr('src', e.target.result);
+    }
+    reader.readAsDataURL(e.target.files[0]);
+  });
+});
+$(function() {
+  const imgPath = location.href + "/images/idols";
+  $('#searchImage').on('click', function(evt) {
+    const form = $('#myForm').get()[0];
+    
+    
+    // 処理前に Loading 画像を表示
+    dispLoading("処理中...");
+
+    // FormData オブジェクトを作成
+    const formData = new FormData( form );
+     
+    // Ajaxで送信
+    $.ajax({
+      url: '/upload',
+      method: 'post',
+      dataType: 'json',
+      // dataに FormDataを指定
+      data: formData,
+      // Ajaxがdataを整形しない指定
+      processData: false,
+      // contentTypeもfalseに指定
+      contentType: false
+    }).done(function( res ) {
+      // 照合結果取得
+      showMatchedImages(res);
+      console.log( 'SUCCESS', res );
+    }).fail(function( jqXHR, textStatus, errorThrown ) {
+      // 送信失敗
+      console.log( 'ERROR', jqXHR, textStatus, errorThrown );
+    }).always(function( res ) {
+      // Lading 画像を消す
+      removeLoading();
+    });
+ 
+    return false;
+  });
+  // マッチした画像を表示
+  const showMatchedImages = (imageList) => {
+    // 結果をリセット
+    $('#results').hide();
+    $("#search-result-list").empty();
+ 
+    // マッチした画像を結果に追加
+    for (var i = 0; i < imageList.length; i++) {
+      var imageSrc = imgPath + '/' + imageList[i].Name;
+      var similarity = imageList[i].Similarity;
+      var name = imageList[i].JpnName;
+      $('#search-result-list').append('<div class="result-text">' + (i + 1) + '位 ' + name + ' &lt;類似度：' + Math.round(similarity * 10) / 10 + '%&gt;')
+      $('#search-result-list').append('<div class="result-image"><img src="' + imageSrc + '" width="180"></div>');
+    }
+    // マッチ画像がないとき
+    if ( imageList.length == 0 ) {
+      $('#search-result-list').append('<div>マッチする画像はありませんでした。</div>');
+    }
+    $('#results').show();
+  }
+});
+</script>
+</head>
+<body>
+  <form id="myForm" class="form">
+    <div>
+      <div>
+        765プロの中からあなたに最も似ているアイドルを探します
+      </div>
+      <div class="file-button" >
+        ファイルを選択
+        <input type="file" name="file" id="target-chooser" class="file-input"/>
+      </div>
+      <div>
+        <img id="target-image">
+      </div>
+      <div>
+        <button id="searchImage" type="button" class="btn-flat-border">診断！</button>
+      </div>
+    </div>
+    <div id="results">
+      <div id="search-result-list"></div>
+    </div>
+  </form>
+</body>
+</html>
