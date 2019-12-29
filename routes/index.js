@@ -235,7 +235,7 @@ const execRekognition = (uploadImage) => {
       if (err) {
         console.log(err);
       } else {
-        // 画像として認識されたがunmatch かどうかの判別用
+        // 類似度に関係なくmatchさせるのでundifinedとなることはほぼないはず
         if (typeof(data.FaceMatches[0]) != 'undefined') {
           data.FaceMatches.forEach(faces => {
             compareResult = {
